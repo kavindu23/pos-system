@@ -72,3 +72,7 @@ Returns assume items are returned to saleable inventory; use a stock adjustment 
 ## Tests
 
 `npm test` runs an actual HTTP server against a temporary database. It verifies first-run setup, authentication, origin protection, catalog validation, transactional sales and stock limits, refunds, credit balances/payments, weighted purchase costs, inventory adjustments, service/fractional quantities, reporting arithmetic, cash reconciliation, role boundaries, session revocation, exports, backup integrity and restart persistence.
+
+## Separate shop installations
+
+For an online installation shared by multiple computers at one shop, see [Shop installation and operations](docs/SHOP-INSTALLATION.md). Includes Docker/Caddy HTTPS configuration, an installation key for first-run setup, isolated data volumes, online backups and recovery guidance. Each shop runs its own instance. Set `PUBLIC_ORIGIN` to the exact HTTPS origin and `SETUP_TOKEN_FILE` to a private key file (at least 32 characters); production also requires `COOKIE_SECURE=true`. Settings supports a shop logo on the workspace and receipts.

@@ -8,6 +8,20 @@ import { fileURLToPath } from "node:url";
 const root = dirname(fileURLToPath(import.meta.url));
 const dataDir = resolve(process.env.DATA_DIR || join(root, "data"));
 mkdirSync(dataDir, { recursive: true });
+const publicOrigin = process.env.PUBLIC_ORIGIN || "";
+if (publicOrigin) {
+  const origin = new URL(publicOrigin);
+  if (origin.origin !== publicOrigin || origin.protocol !== "https:")
+    throw new Error("PUBLIC_ORIGIN must be an HTTPS origin without a trailing slash.");
+}
+const setupToken = process.env.SETUP_TOKEN_FILE
+  ? readFileSync(process.env.SETUP_TOKEN_FILE, "utf8").trim()
+  : "";
+if (process.env.SETUP_TOKEN_FILE && setupToken.length < 32)
+  throw new Error("Installation key must contain at least 32 characters.");
+if (process.env.NODE_ENV === "production" &&
+    (!publicOrigin || process.env.COOKIE_SECURE !== "true" || !setupToken))
+  throw new Error("Production requires PUBLIC_ORIGIN, COOKIE_SECURE=true and SETUP_TOKEN_FILE.");
 const db = new DatabaseSync(join(dataDir, "pos.sqlite"));
 db.exec(`PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL;
 CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY CHECK(id=1), json TEXT NOT NULL);
@@ -31,6 +45,7 @@ CREATE TABLE IF NOT EXISTS checkout_keys (key TEXT PRIMARY KEY, user_id INTEGER 
 `);
 const defaults = {
   businessName: "My Business",
+  logoData: "",
   businessType: "Retail",
   currency: "LKR",
   address: "",
@@ -182,7 +197,7 @@ async function api(req, res, url) {
   if (["POST", "PUT", "PATCH"].includes(req.method)) {
     const origin = req.headers.origin;
     assert(
-      !origin || new URL(origin).host === req.headers.host,
+      !origin || (publicOrigin ? origin === publicOrigin : new URL(origin).host === req.headers.host),
       "Cross-origin request denied.",
       403,
     );
@@ -220,13 +235,19 @@ async function api(req, res, url) {
     `pos_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200${process.env.COOKIE_SECURE === "true" ? "; Secure" : ""}`;
   if (p === "/api/health") return reply({ status: "ok" });
   if (p === "/api/bootstrap" && m === "GET")
-    return reply({ needsSetup: get("SELECT COUNT(*) n FROM users").n === 0 });
+    return reply({ needsSetup: get("SELECT COUNT(*) n FROM users").n === 0, ...(setupToken ? { requiresSetupToken: true } : {}) });
   if (p === "/api/setup" && m === "POST") {
     assert(
       get("SELECT COUNT(*) n FROM users").n === 0,
       "Setup already completed.",
       409,
     );
+    if (setupToken) {
+      const supplied = Buffer.from(String(body.setupToken || ""));
+      const expected = Buffer.from(setupToken);
+      assert(supplied.length === expected.length && timingSafeEqual(supplied, expected),
+        "A valid installation key is required. Contact your installer.", 403);
+    }
     const name = str(body.name, "Name"),
       username = str(body.username, "Username", 60),
       password = str(body.password, "Password", 200);
@@ -336,6 +357,7 @@ async function api(req, res, url) {
     const s = {
       businessName: str(body.businessName, "Business name"),
       businessType: str(body.businessType, "Business type", 60),
+      logoData: str(body.logoData, "Logo", 180000, false),
       currency: str(body.currency, "Currency", 3),
       address: str(body.address, "Address", 500, false),
       phone: str(body.phone, "Phone", 60, false),
@@ -343,6 +365,8 @@ async function api(req, res, url) {
       receiptFooter: str(body.receiptFooter, "Receipt footer", 500, false),
       requireShift: !!body.requireShift,
     };
+    assert(!s.logoData || /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(s.logoData),
+      "Upload a PNG, JPEG or WebP logo.");
     assert(/^[A-Z]{3}$/.test(s.currency), "Use a three-letter currency code.");
     run("UPDATE settings SET json=? WHERE id=1", JSON.stringify(s));
     audit(u, "settings.update", {});

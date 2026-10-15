@@ -1,0 +1,56 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      COOKIE_SECURE: "true"
+      PUBLIC_ORIGIN: https://${SHOP_DOMAIN:?Set SHOP_DOMAIN in .env}
+      SETUP_TOKEN_FILE: /run/secrets/setup_token
+    secrets:
+      - setup_token
+    volumes:
+      - shop_data:/app/data
+      - shop_backups:/backups
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+  proxy:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    environment:
+      SHOP_DOMAIN: ${SHOP_DOMAIN:?Set SHOP_DOMAIN in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+secrets:
+  setup_token:
+    file: ./secrets/setup_token
+volumes:
+  shop_data:
+  shop_backups:
+  caddy_data:
+  caddy_config:

@@ -1209,3 +1209,6 @@ dialog::backdrop {
     margin: 6mm;
   }
 }
+
+.shop-logo { display: block; max-width: 140px; max-height: 64px; object-fit: contain; margin: 10px 0; }
+.receipt-logo { margin: 0 auto 12px; max-width: 120px; }

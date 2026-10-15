@@ -141,9 +141,9 @@ function modal(title, content, onSubmit, width) {
 const formEnd = (label) =>
   `<p class="error form-error" role="alert"></p><div class="modal-foot"><button type="button" class="btn" data-action="close-modal">Cancel</button><button type="submit" class="btn primary">${label}</button></div></form>`;
 const dataOf = (f) => Object.fromEntries(f.entries());
-function showAuth(setup) {
+function showAuth(setup, requiresSetupToken = false) {
   $("#app").innerHTML =
-    `<div class="auth"><section class="auth-story"><div class="brand"><span class="brand-mark">v</span>VersaPOS<span class="small" style="font-weight:400;letter-spacing:0;margin-left:5px;opacity:.6">/ workspace</span></div><span class="pill">One workspace. Every kind of business.</span><h1>A little less busy.<br>A lot more business.</h1><p>From the first sale to the last stock count, keep everything moving in one simple workspace.</p></section><section class="auth-form"><form class="auth-card" id="auth-form"><div class="eyebrow">${setup ? "A fresh start" : "Welcome back"}</div><h2>${setup ? "Make it your own." : "Your business awaits."}</h2><p>${setup ? "Create your business and its first administrator. No default passwords." : "Sign in to your workspace to get things moving."}</p>${setup ? field("Business name", "businessName", "", "text", 'required maxlength="200" placeholder="e.g. Greenleaf Store"') + field("Your name", "name", "", "text", 'required autocomplete="name" maxlength="200"') : ""}${field("Username", "username", "", "text", 'required autocomplete="username" maxlength="60"')}${field("Password", "password", "", "password", `required autocomplete="${setup ? "new-password" : "current-password"}" ${setup ? 'minlength="10"' : ""} maxlength="200"`)}${
+    `<div class="auth"><section class="auth-story"><div class="brand"><span class="brand-mark">v</span>VersaPOS<span class="small" style="font-weight:400;letter-spacing:0;margin-left:5px;opacity:.6">/ workspace</span></div><span class="pill">One workspace. Every kind of business.</span><h1>A little less busy.<br>A lot more business.</h1><p>From the first sale to the last stock count, keep everything moving in one simple workspace.</p></section><section class="auth-form"><form class="auth-card" id="auth-form"><div class="eyebrow">${setup ? "A fresh start" : "Welcome back"}</div><h2>${setup ? "Make it your own." : "Your business awaits."}</h2><p>${setup ? "Create your business and its first administrator. No default passwords." : "Sign in to your workspace to get things moving."}</p>${setup && requiresSetupToken ? field("Installation key", "setupToken", "", "password", 'required autocomplete="off" minlength="32"') : ""}${setup ? field("Business name", "businessName", "", "text", 'required maxlength="200" placeholder="e.g. Greenleaf Store"') + field("Your name", "name", "", "text", 'required autocomplete="name" maxlength="200"') : ""}${field("Username", "username", "", "text", 'required autocomplete="username" maxlength="60"')}${field("Password", "password", "", "password", `required autocomplete="${setup ? "new-password" : "current-password"}" ${setup ? 'minlength="10"' : ""} maxlength="200"`)}${
       setup
         ? select(
             "Currency",
@@ -226,7 +226,7 @@ const navItems = () =>
   ].filter((x) => x[2]);
 function renderShell() {
   $("#app").innerHTML =
-    `<div class="shell"><div class="mobile-shade" data-action="toggle-menu"></div><aside class="sidebar"><div class="brand"><span class="brand-mark">v</span>VersaPOS</div><div class="workspace"><span>Workspace</span><strong>${esc(state.settings.businessName)}</strong></div><div class="nav-caption">YOUR BUSINESS</div><nav class="nav">${navItems()
+    `<div class="shell"><div class="mobile-shade" data-action="toggle-menu"></div><aside class="sidebar"><div class="brand"><span class="brand-mark">v</span>VersaPOS</div><div class="workspace">${state.settings.logoData ? `<img class="shop-logo" src="${esc(state.settings.logoData)}" alt="Shop logo">` : ""}<span>Workspace</span><strong>${esc(state.settings.businessName)}</strong></div><div class="nav-caption">YOUR BUSINESS</div><nav class="nav">${navItems()
       .map(
         ([key, name]) =>
           `<button data-page="${key}" class="${state.page === key ? "active" : ""}">${icon(key)}${name}</button>`,
@@ -517,7 +517,7 @@ function salesPage() {
 }
 function receipt(s) {
   const t = state.settings;
-  return `<div class="receipt"><h2>${esc(t.businessName)}</h2><p class="center">${esc(t.address)}${t.phone ? "<br>" + esc(t.phone) : ""}</p><hr><p>${esc(s.number)}<br>${date(s.created_at)}<br>Cashier: ${esc(s.cashier)}<br>Customer: ${esc(s.customer || "Walk-in")}${s.table_name ? "<br>Order: " + esc(s.table_name) : ""}</p><hr>${s.items.map((i) => `<p><strong>${esc(i.name)}</strong></p><div class="receipt-line"><span>${i.quantity} × ${money(i.price)}</span><span>${money(i.total)}</span></div>${i.returned ? `<p>Returned: ${i.returned}</p>` : ""}`).join("")}<hr><div class="receipt-line"><span>Subtotal</span><span>${money(s.subtotal)}</span></div><div class="receipt-line"><span>Discount</span><span>−${money(s.discount)}</span></div><div class="receipt-line"><span>Tax</span><span>${money(s.tax)}</span></div><div class="receipt-line"><strong>Original total</strong><strong>${money(s.total)}</strong></div>${s.refunded ? `<div class="receipt-line"><span>Returns</span><span>−${money(s.refunded)}</span></div>` : ""}<div class="receipt-line"><strong>Net total</strong><strong>${money(s.total - s.refunded)}</strong></div><div class="receipt-line"><span>Net paid</span><span>${money(s.paid)}</span></div><div class="receipt-line"><span>Balance</span><span>${money(s.balance)}</span></div>${s.note ? "<hr><p>" + esc(s.note) + "</p>" : ""}<hr><p class="center">${esc(t.receiptFooter)}</p></div>`;
+  return `<div class="receipt">${t.logoData ? `<img class="shop-logo receipt-logo" src="${esc(t.logoData)}" alt="Shop logo">` : ""}<h2>${esc(t.businessName)}</h2><p class="center">${esc(t.address)}${t.phone ? "<br>" + esc(t.phone) : ""}</p><hr><p>${esc(s.number)}<br>${date(s.created_at)}<br>Cashier: ${esc(s.cashier)}<br>Customer: ${esc(s.customer || "Walk-in")}${s.table_name ? "<br>Order: " + esc(s.table_name) : ""}</p><hr>${s.items.map((i) => `<p><strong>${esc(i.name)}</strong></p><div class="receipt-line"><span>${i.quantity} × ${money(i.price)}</span><span>${money(i.total)}</span></div>${i.returned ? `<p>Returned: ${i.returned}</p>` : ""}`).join("")}<hr><div class="receipt-line"><span>Subtotal</span><span>${money(s.subtotal)}</span></div><div class="receipt-line"><span>Discount</span><span>−${money(s.discount)}</span></div><div class="receipt-line"><span>Tax</span><span>${money(s.tax)}</span></div><div class="receipt-line"><strong>Original total</strong><strong>${money(s.total)}</strong></div>${s.refunded ? `<div class="receipt-line"><span>Returns</span><span>−${money(s.refunded)}</span></div>` : ""}<div class="receipt-line"><strong>Net total</strong><strong>${money(s.total - s.refunded)}</strong></div><div class="receipt-line"><span>Net paid</span><span>${money(s.paid)}</span></div><div class="receipt-line"><span>Balance</span><span>${money(s.balance)}</span></div>${s.note ? "<hr><p>" + esc(s.note) + "</p>" : ""}<hr><p class="center">${esc(t.receiptFooter)}</p></div>`;
 }
 async function viewSale(n) {
   const s = await api("/sales/" + n);
@@ -883,7 +883,7 @@ function settingsPage() {
       "Built around your business.",
       "Make the workspace, register and receipts your own.",
     ) +
-    `<div class="settings-layout"><section class="panel"><div class="panel-head"><h2>Business settings</h2></div><div class="panel-body"><form id="settings-form"><div class="form-grid">${field("Business name", "businessName", s.businessName, "text", 'required maxlength="200"', true)}${select(
+    `<div class="settings-layout"><section class="panel"><div class="panel-head"><h2>Business settings</h2></div><div class="panel-body"><form id="settings-form"><div class="form-grid"><div class="wide"><label for="shop-logo-file">Shop logo (PNG, JPEG or WebP, max 128 KB)</label><input id="shop-logo-file" type="file" accept="image/png,image/jpeg,image/webp">${s.logoData ? `<img class="shop-logo" src="${esc(s.logoData)}" alt="Current shop logo">` : ""}${check("Remove current logo", "removeLogo", false)}</div>${field("Business name", "businessName", s.businessName, "text", 'required maxlength="200"', true)}${select(
       "Business type",
       "businessType",
       [
@@ -968,7 +968,21 @@ function bindPage() {
         b = $("button[type=submit]", e.target);
       b.disabled = true;
       try {
+        let logoData = state.settings.logoData || "";
+        if (f.has("removeLogo")) logoData = "";
+        const logo = $("#shop-logo-file", e.target).files[0];
+        if (logo) {
+          if (!["image/png", "image/jpeg", "image/webp"].includes(logo.type) || logo.size > 128 * 1024)
+            throw new Error("Choose a PNG, JPEG or WebP image up to 128 KB.");
+          logoData = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error("Unable to read logo."));
+            reader.readAsDataURL(logo);
+          });
+        }
         state.settings = await api("/settings", "PUT", {
+          logoData,
           ...dataOf(f),
           taxRate: Number(f.get("taxRate")),
           requireShift: f.has("requireShift"),
@@ -1188,7 +1202,7 @@ window.addEventListener("beforeunload", (e) => {
 async function init() {
   try {
     const bootstrap = await api("/bootstrap");
-    if (bootstrap.needsSetup) return showAuth(true);
+    if (bootstrap.needsSetup) return showAuth(true, bootstrap.requiresSetupToken);
     try {
       await loadWorkspace();
     } catch {
